@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebFS</title>
+
+    <link rel="icon" type="image/svg+xml" href="/webfs/static/icons/favico.svg">
+    <link rel="stylesheet" href="/webfs/static/style.css">
+
+    <!-- Dependencies -->
+    <script src="/webfs/static/vendor/js/highlight.min.js"></script>
+    <link rel="stylesheet" href="/webfs/static/vendor/css/github-dark.min.css">
+    <script src="/webfs/static/vendor/js/marked.min.js"></script>
+    <link href="/webfs/static/vendor/css/viewer.min.css" rel="stylesheet">
+    <script src="/webfs/static/vendor/js/viewer.min.js"></script>
+    <link href="/webfs/static/vendor/css/plyr.css" rel="stylesheet" />
+    <script src="/webfs/static/vendor/js/plyr.polyfilled.js"></script>
+    <script src="/webfs/static/vendor/js/mammoth.browser.min.js"></script>
+</head>
+
+<body>
+    <div class="app">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="logo">
+                    <span class="icon" data-icon="logo"></span>
+                    <span>WebFS</span>
+                </div>
+                <button id="manageVaultsBtn" class="btn-secondary" style="display: none; padding: 4px 10px;">
+                    <span class="icon" data-icon="manageVaults"></span>
+                    Vaults
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-container" id="searchContainer" style="display: none; padding-top: 16px;">
+                <div class="input-group">
+                    <span class="icon" data-icon="search"></span>
+                    <input type="text" id="searchInput" placeholder="Search files..." autocomplete="off">
+                </div>
+            </div>
+
+            <!-- File Tree -->
+            <div class="tree-container">
+                <div id="fileTree"></div>
+            </div>
+        </aside>
+
+        <!-- Main Preview Area -->
+        <main class="preview">
+            <div id="previewContent">
+                <div class="empty-state">
+                    <span class="icon" data-icon="lockedBig"></span>
+                    <h2 id="vaultStatus">Vault Locked</h2>
+                    <p id="vaultInstruction">Access the Vault Manager to decrypt and access your files.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Global Processing Overlay -->
+        <div id="globalLoader" class="loader-overlay">
+            <div class="spinner"></div>
+            <div class="loader-text" id="loaderText">Processing...</div>
+        </div>
+
+        <!-- Vault Manager Modal Overlay -->
+        <div id="vaultModal" class="modal-overlay active">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Vault Manager</h3>
+                    <button id="closeModalBtn" class="btn-close" style="display: none;" title="Close Manager">
+                        <span class="icon" data-icon="close"></span>
+                    </button>
+                </div>
+
+                <!-- Unlock Input -->
+                <div class="unlock-panel" id="unlockPanel">
+                    <div class="input-group">
+                        <input type="password" id="password" placeholder="Enter Vault Password">
+                        <span class="icon" data-icon="eyeSvg"></span>
+                    </div>
+
+                    <div style="display: flex; gap: 8px">
+                        <button class="btn-primary" id="unlockBtn" style="flex: 1; justify-content: center;">Unlock Vault</button>
+                        
+                        <button id="lockAllBtn" class="btn-secondary" style="display: none; flex: 1; justify-content: center; border-color: rgba(239, 68, 68, 0.4); color: #ef4444;">
+                            <span class="icon" data-icon="lockRed"></span>
+                            Lock All Vaults
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Vaults list injects here -->
+                <div id="activeVaultsContainer" class="active-vaults" style="display: none;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/webfs/static/icons.js"></script>
+    <script src="/webfs/static/main.js"></script>
+
+</body>
+</html>

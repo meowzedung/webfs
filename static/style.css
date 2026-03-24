@@ -1,0 +1,609 @@
+:root {
+    --bg-base: #09090b;
+    --bg-sidebar: #09090b;
+    --bg-surface: #18181b;
+    --bg-surface-hover: #27272a;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    
+    --text-main: #ededed;
+    --text-muted: #a1a1aa;
+    
+    --accent: #ededed;
+    --accent-fg: #09090b;
+    --accent-hover: #ffffff;
+    --success: #10b981;
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: monospace, system-ui, -apple-system, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-main);
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--bg-surface-hover);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+img {
+    max-height: 90vh;
+    max-width: 80vw;
+}
+
+/* Layout Structure */
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 280px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.sidebar-header { padding: 24px 20px 16px; }
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.unlock-panel {
+    padding: 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-group svg {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+}
+
+.input-group svg.eye-icon {
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.input-group svg.eye-icon:hover {
+    color: var(--text-main);
+}
+
+.unlock-panel input {
+    width: 100%;
+    padding: 15px 12px 15px 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-base);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.unlock-panel input:focus { border-color: var(--text-muted); }
+
+.btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-secondary:hover { background: var(--bg-surface); }
+
+/* Active Vaults Selective Locking UI */
+.active-vaults {
+    margin-top: 5%;
+    padding: 0 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vault-tag {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-main);
+    transition: background 0.2s;
+}
+
+.vault-tag:hover {
+    background: var(--bg-surface-hover);
+}
+
+.vault-tag-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vault-tag-info span.count {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg-base);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.btn-lock-vault {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-lock-vault:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444; /* Red lock icon on hover */
+}
+
+/* Search Bar Styling */
+.search-container {
+    margin-top: 10px;
+    padding: 0 20px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-container input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.search-container input:focus {
+    border-color: var(--text-muted);
+}
+
+/* File Tree Styling */
+.tree-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 13px;
+    user-select: none;
+    transition: all 0.1s;
+}
+.tree-item:hover {
+    background: var(--bg-surface);
+    color: var(--text-main);
+}
+.tree-item.active {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+}
+.tree-item.folder { color: var(--text-main); }
+.tree-item svg { flex-shrink: 0; }
+.tree-item.active svg { color: var(--accent); }
+
+.folder-icon { transition: transform 0.2s; }
+.tree-item.folder.open .folder-icon { transform: rotate(90deg); }
+
+.folder-children {
+    padding-left: 14px;
+    margin-left: 6px;
+    border-left: 1px solid var(--border);
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.folder-children.collapsed { display: none; }
+
+.unlocked-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--success);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 12px;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Main Preview Area */
+.preview {
+    flex: 1;
+    background: var(--bg-base);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#previewContent {
+    flex: 1;
+    padding: 60px;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+.preview-header .file-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* Empty States & Fallbacks */
+.empty-state, .fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 60vh;
+    text-align: center;
+    color: var(--text-muted);
+}
+.empty-state svg, .fallback svg {
+    color: var(--border-hover);
+    margin-bottom: 20px;
+}
+.empty-state h2, .fallback h3 {
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* Media Viewers */
+.media-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 120px);
+}
+.media-container img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    cursor: zoom-in;
+}
+.video-wrapper {
+    width: 100%;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+}
+
+/* PDF Viewer Styling */
+.pdf-wrapper {
+    width: 100%;
+    height: calc(100vh - 160px); /* Fill remaining viewport space */
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    background: #e5e5e5; /* Most native PDF viewers have a dark UI, but need a neutral base */
+}
+
+.pdf-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/* Code & Markdown Overrides */
+.code-wrapper pre {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border);
+    padding: 24px;
+    border-radius: var(--radius-md);
+    overflow: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.hljs { background: transparent !important; padding: 0 !important; }
+
+.markdown-body {
+    color: #e5e7eb;
+    font-size: 15px;
+    line-height: 1.6;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    color: #ffffff;
+    font-weight: 600;
+    margin-top: 2em;
+    margin-bottom: 1em;
+}
+.markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body p, .markdown-body ul { margin-bottom: 1em; }
+.markdown-body a { color: #3b82f6; text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--bg-surface);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+.markdown-body pre {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    overflow: auto;
+    margin: 1.5em 0;
+}
+.markdown-body pre code { background: none; padding: 0; border: none; }
+.markdown-body blockquote {
+    border-left: 3px solid var(--border-hover);
+    color: var(--text-muted);
+    padding-left: 1em;
+    margin: 1.5em 0;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid var(--text-main);
+    padding: 5px;
+}
+
+/* Media inside Markdown */
+.markdown-body img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    cursor: zoom-in;
+    display: block;
+    margin: 1.5em auto; /* Center the image */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.markdown-body video {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    display: block;
+    margin: 1.5em auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Ensure Plyr inherits the rounding */
+.markdown-body .plyr {
+    border-radius: var(--radius-md);
+    margin: 1.5em auto;
+}
+
+/* DOCX Specific Overrides */
+.docx-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+}
+.docx-body th, .docx-body td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+}
+
+/* Background Status Loader Overlay */
+.loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 9, 11, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+.loader-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+}
+.loader-text {
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 500;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Vault Manager Modal UI */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(9, 9, 11, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50; /* Above app, below global loader */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    transform: translateY(15px);
+    transition: transform 0.25s ease;
+}
+
+.modal-overlay.active .modal-card {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-close:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+}
+
+.active-vaults {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Vault Tag overrides for Modal context */
+.vault-tag {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-main);
+}

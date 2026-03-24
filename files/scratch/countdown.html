@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Until Calculator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better readability and aesthetics */
+        :root {
+            --primary-color: #4f46e5; /* Indigo-600 */
+            --bg-color: #1f2937; /* Gray-800 */
+            --card-color: #374151; /* Gray-700 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: #f3f4f6; /* Gray-100 */
+            transition: background-color 0.3s;
+        }
+        .input-field {
+            @apply bg-gray-600 border border-gray-500 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 w-full transition duration-300;
+        }
+        .countdown-unit {
+            @apply flex flex-col items-center justify-center p-4 bg-gray-800 rounded-xl shadow-lg m-1 md:m-2 min-w-[70px] sm:min-w-[90px];
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-start sm:items-center justify-center p-4">
+
+    <div class="w-full max-w-lg bg-gray-700 p-6 sm:p-8 rounded-2xl shadow-2xl transition duration-500">
+        <h1 class="text-3xl font-extrabold text-center mb-6 text-indigo-400">Time Until...</h1>
+
+        <!-- Input Form -->
+        <div class="flex flex-col space-y-4 mb-8">
+            <div>
+                <label for="targetDate" class="block text-sm font-medium mb-1 text-gray-300">Target Date</label>
+                <input type="date" id="targetDate" class="input-field" />
+            </div>
+            <div>
+                <label for="targetTime" class="block text-sm font-medium mb-1 text-gray-300">Target Time</label>
+                <input type="time" id="targetTime" value="00:00" class="input-field" />
+            </div>
+            <button id="startButton" class="w-full py-3 mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition duration-300 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                Start Countdown
+            </button>
+        </div>
+
+        <!-- Status/Error Message -->
+        <div id="statusMessage" class="text-center text-red-400 mb-6 font-medium hidden"></div>
+
+        <!-- Countdown Display -->
+        <div id="countdownDisplay" class="hidden">
+            <h2 class="text-xl font-semibold text-center mb-4 text-gray-200">Time Remaining</h2>
+            <div id="timerContainer" class="flex flex-wrap justify-center text-center">
+                <!-- Countdown units will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const targetDateInput = document.getElementById('targetDate');
+        const targetTimeInput = document.getElementById('targetTime');
+        const startButton = document.getElementById('startButton');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const timerContainer = document.getElementById('timerContainer');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let targetTimestamp = null;
+        let countdownInterval = null;
+
+        // Utility function to pluralize strings
+        const pluralize = (count, singular, plural) => (count === 1 ? singular : plural);
+
+        // Function to create a display element for a single unit
+        const createUnitElement = (value, unit) => {
+            const unitEl = document.createElement('div');
+            unitEl.className = 'countdown-unit';
+            unitEl.innerHTML = `
+                <span class="text-4xl sm:text-5xl font-extrabold text-indigo-400">${value.toString().padStart(2, '0')}</span>
+                <span class="text-xs font-medium uppercase text-gray-400 mt-1">${unit}</span>
+            `;
+            return unitEl;
+        };
+
+        // Function to calculate and update the countdown
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = targetTimestamp - now;
+
+            if (distance < 0) {
+                clearInterval(countdownInterval);
+                displayMessage("🎉 The target time has been reached!");
+                return;
+            }
+
+            // Time calculations for days, hours, minutes and seconds
+            const second = 1000;
+            const minute = second * 60;
+            const hour = minute * 60;
+            const day = hour * 24;
+
+            // Approximate conversion for years and months (using average lengths)
+            const daysInYear = 365.25;
+            const daysInMonth = 30.44;
+
+            let remaining = distance;
+
+            const years = Math.floor(remaining / (day * daysInYear));
+            remaining %= (day * daysInYear);
+
+            const months = Math.floor(remaining / (day * daysInMonth));
+            remaining %= (day * daysInMonth);
+
+            const days = Math.floor(remaining / day);
+            remaining %= day;
+
+            const hours = Math.floor(remaining / hour);
+            remaining %= hour;
+
+            const minutes = Math.floor(remaining / minute);
+            remaining %= minute;
+
+            const seconds = Math.floor(remaining / second);
+
+            // Construct the display units dynamically
+            timerContainer.innerHTML = '';
+
+            const units = [
+                { value: years, unit: pluralize(years, 'Year', 'Years') },
+                { value: months, unit: pluralize(months, 'Month', 'Months') },
+                { value: days, value: days, unit: pluralize(days, 'Day', 'Days') },
+                { value: hours, unit: pluralize(hours, 'Hour', 'Hours') },
+                { value: minutes, unit: pluralize(minutes, 'Minute', 'Minutes') },
+                { value: seconds, unit: pluralize(seconds, 'Second', 'Seconds') },
+            ];
+
+            let startedDisplaying = false;
+
+            // Only display units that are non-zero, or if we have already started displaying time (to show minutes/seconds)
+            units.forEach((item, index) => {
+                // Special condition: if it's the last three units (hours, minutes, seconds), always show them if time is running
+                if (item.value > 0 || startedDisplaying || index >= 3) {
+                    timerContainer.appendChild(createUnitElement(item.value, item.unit));
+                    if (item.value > 0) startedDisplaying = true;
+                }
+            });
+
+            // Fallback for very short remaining time or if all are zero
+            if (timerContainer.children.length === 0) {
+                 timerContainer.appendChild(createUnitElement(0, 'Seconds'));
+            }
+
+            countdownDisplay.classList.remove('hidden');
+        }
+
+        // Function to display status or error messages
+        function displayMessage(message, isError = true) {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('hidden');
+            statusMessage.classList.toggle('text-red-400', isError);
+            statusMessage.classList.toggle('text-green-400', !isError);
+            countdownDisplay.classList.add('hidden');
+            timerContainer.innerHTML = ''; // Clear timer display
+        }
+
+        // Event listener for the start button
+        startButton.addEventListener('click', () => {
+            const date = targetDateInput.value;
+            const time = targetTimeInput.value;
+
+            if (!date || !time) {
+                displayMessage("Please select both a date and a time.");
+                return;
+            }
+
+            const dateTimeString = `${date}T${time}:00`; // ISO format for reliable parsing
+            targetTimestamp = new Date(dateTimeString).getTime();
+
+            if (isNaN(targetTimestamp)) {
+                displayMessage("Invalid date or time format.");
+                return;
+            }
+
+            const now = new Date().getTime();
+
+            if (targetTimestamp <= now) {
+                displayMessage("Please select a future date and time.");
+                return;
+            }
+
+            // Clear previous interval if any
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            // Hide status message and start/restart the countdown
+            statusMessage.classList.add('hidden');
+            updateCountdown(); // Initial call
+            countdownInterval = setInterval(updateCountdown, 1000);
+        });
+
+        // Set default date/time inputs for immediate testing
+        window.onload = () => {
+            const today = new Date();
+            // Set date to tomorrow
+            today.setDate(today.getDate() + 1);
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+
+            targetDateInput.value = `${yyyy}-${mm}-${dd}`;
+
+            // Set time to midday (noon)
+            targetTimeInput.value = '12:00';
+        };
+
+    </script>
+</body>
+</html>

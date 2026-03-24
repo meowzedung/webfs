@@ -1,0 +1,214 @@
+#!/bin/bash
+
+# --- Argument Parsing ---
+# Usage:
+#   ./dd_fzf_dynamic_script.sh backup <source_disk> <save_dir> <image_name>
+#   ./dd_fzf_dynamic_script.sh restore <image_file> <dest_disk>
+
+MODE="$1"
+ARG1="$2"
+ARG2="$3"
+ARG3="$4"
+
+# --- Configuration ---
+# BLOCK_SIZE is retained as it affects dd performance
+BLOCK_SIZE="4M"            # Block size for dd (improves speed)
+
+# --- Helper Functions ---
+
+# Function to display available block devices for fzf selection
+get_devices() {
+    # Filters out loop, RAM, and boot partitions (like sda1, nvme0n1p1)
+    # Lists only whole disks (like sda, nvme0n1)
+    # Formats output as: /dev/sdX (SIZE_IN_GB) - MODEL
+    lsblk -ndo NAME,SIZE,MODEL | awk '$1 !~ /[0-9]|loop|ram/ {print "/dev/"$1" ("$2") - "$3}'
+}
+
+# Function to select an image file using fzf in a user-specified directory
+select_image() {
+    local prompt_text="$1"
+    local search_dir="$2"
+
+    if [ ! -d "$search_dir" ]; then
+        echo "Error: Directory '$search_dir' does not exist." >&2
+        return 1
+    fi
+
+    # Use find to list .img files in the specified directory for fzf selection
+    find "$search_dir" -maxdepth 1 -type f -name "*.img" | fzf --prompt="$prompt_text"
+}
+
+# Function to extract the raw device path from the fzf output
+get_raw_device() {
+    # Input is like: /dev/sda (238.4G) - MODEL
+    # Output is just: /dev/sda
+    echo "$1" | awk '{print $1}'
+}
+
+# Function to unmount all partitions on a given disk device
+unmount_partitions() {
+    local device_path="$1"
+    echo "Checking for mounted partitions on $device_path..."
+
+    # Get all partition mount points for the disk
+    PARTITIONS=$(lsblk -rno NAME,MOUNTPOINT | grep "$(basename "$device_path")" | grep -v "$device_path" | awk '$2 != "" {print "/dev/"$1}')
+
+    if [ -z "$PARTITIONS" ]; then
+        echo "No mounted partitions found."
+        return 0
+    fi
+
+    local unmounted_count=0
+    for part in $PARTITIONS; do
+        if umount -f "$part" 2>/dev/null; then
+            echo "Successfully unmounted $part"
+            unmounted_count=$((unmounted_count + 1))
+        else
+            echo "Warning: Could not unmount $part. Please ensure this partition is not in use."
+            return 1 # Fail fast if we can't unmount everything
+        fi
+    done
+    return 0
+}
+
+# --- Core Operations ---
+
+## Backup Disk to Image
+
+backup_disk() {
+    echo "--- DISK BACKUP (dd to .img file) ---"
+
+    if [ -n "$ARG1" ]; then
+        SOURCE_DEVICE="$ARG1"
+        echo "Source Disk (arg): $SOURCE_DEVICE"
+    else
+        SOURCE_DISK_FULL=$(get_devices | fzf --prompt="SELECT DISK TO BACKUP (Source /dev/...): ")
+        [ -z "$SOURCE_DISK_FULL" ] && echo "No source disk selected. Exiting." && return 1
+        SOURCE_DEVICE=$(get_raw_device "$SOURCE_DISK_FULL")
+    fi
+
+    if ! unmount_partitions "$SOURCE_DEVICE"; then
+        echo "Error: Failed to unmount all necessary partitions. Backup aborted."
+        return 1
+    fi
+
+    if [ -n "$ARG2" ]; then
+        SAVE_DIR="$ARG2"
+    else
+        read -rp "Enter directory to save the image: " SAVE_DIR
+    fi
+
+    [ ! -d "$SAVE_DIR" ] && mkdir -p "$SAVE_DIR" 2>/dev/null || true
+
+    if [ -n "$ARG3" ]; then
+        IMAGE_NAME="$ARG3"
+    else
+        read -rp "Enter filename for the image: " IMAGE_NAME
+    fi
+    [[ "$IMAGE_NAME" != *.img ]] && IMAGE_NAME+=".img"
+    DEST_FILE="$SAVE_DIR/$IMAGE_NAME"
+
+    echo -e "\n--- SUMMARY ---"
+    echo "SOURCE DISK: $SOURCE_DEVICE"
+    echo "DEST. FILE:  $DEST_FILE"
+
+    if [ -z "$ARG1" ]; then
+        read -rp "!!! PROCEED WITH BACKUP? (y/N) " CONFIRM
+        [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && echo "Backup cancelled." && return 1
+    fi
+
+    dd if="$SOURCE_DEVICE" of="$DEST_FILE" bs="$BLOCK_SIZE" status=progress conv=sync,noerror
+    [ $? -eq 0 ] && echo "Backup complete to $DEST_FILE"
+}
+
+## Restore Disk from Image
+
+restore_disk() {
+    echo "--- DISK RESTORE (.img file to disk) ---"
+
+    if [ -n "$ARG1" ]; then
+        SOURCE_FILE="$ARG1"
+    else
+        read -rp "Enter directory where the image is stored: " SEARCH_DIR
+        [ ! -d "$SEARCH_DIR" ] && echo "Invalid directory." && return 1
+        SOURCE_FILE=$(select_image "SELECT DISK IMAGE TO RESTORE:" "$SEARCH_DIR")
+    fi
+
+    if [ -n "$ARG2" ]; then
+        DEST_DEVICE="$ARG2"
+    else
+        DEST_DISK_FULL=$(get_devices | fzf --prompt="SELECT DISK TO OVERWRITE: ")
+        [ -z "$DEST_DISK_FULL" ] && echo "No destination disk selected." && return 1
+        DEST_DEVICE=$(get_raw_device "$DEST_DISK_FULL")
+    fi
+
+    if ! unmount_partitions "$DEST_DEVICE"; then
+        echo "Error: Could not unmount partitions."
+        return 1
+    fi
+
+    echo -e "\n--- SUMMARY ---"
+    echo "SOURCE FILE: $SOURCE_FILE"
+    echo "DEST. DISK:  $DEST_DEVICE"
+
+    if [ -z "$ARG1" ]; then
+        read -rp "!!! PROCEED WITH RESTORE? (y/N) " CONFIRM
+        [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && echo "Restore cancelled." && return 1
+    fi
+
+    dd if="$SOURCE_FILE" of="$DEST_DEVICE" bs="$BLOCK_SIZE" status=progress conv=sync,noerror
+    [ $? -eq 0 ] && echo "Restore complete to $DEST_DEVICE"
+}
+
+
+# --- Main Script Logic ---
+
+# Check for root permissions
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root (e.g., sudo ./dd_fzf_dynamic_script.sh)"
+    exit 1
+fi
+
+# Check for required commands
+if ! command -v fzf &> /dev/null || ! command -v dd &> /dev/null; then
+    echo "Error: Required commands 'fzf' or 'dd' are not installed."
+    echo "Install fzf (e.g., sudo apt install fzf or sudo dnf install fzf)."
+    exit 1
+fi
+
+# Main Menu selection
+echo "--- DD Disk Utility with FZF ---"
+
+if [ -n "$MODE" ]; then
+    case "$MODE" in
+        backup)
+            backup_disk
+            exit $?
+            ;;
+        restore)
+            restore_disk
+            exit $?
+            ;;
+        *)
+            echo "Usage:"
+            echo "  $0 backup <source_disk> <save_dir> <image_name>"
+            echo "  $0 restore <image_file> <dest_disk>"
+            exit 1
+            ;;
+    esac
+fi
+
+echo "Select Operation:"
+OPERATION=$(printf "1) Backup Disk to Image\n2) Restore Disk from Image\n3) Exit" | fzf --prompt="Select an operation: ")
+
+case "$OPERATION" in
+    *Backup*)
+        backup_disk
+        ;;
+    *Restore*)
+        restore_disk
+        ;;
+    *)
+        echo "Exiting script."
+        ;;
+esac

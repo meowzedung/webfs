@@ -38,10 +38,27 @@ pip install cryptography
 ### Change ownership
 
 Create a github account if you don't have one and set up ssh keys.
+Create an empty repository named `webfs`.
 
-Fork the original repo: `https://github.com/shashotoNur/webfs`
+Do the following:
+```
+# Clone the repo
+git clone git@github.com:shashotoNur/webfs.git
+cd webfs
 
-Clone it: `git clone git@github.com:<your_username>/webfs.git`
+# Rename the existing 'origin' to 'upstream'
+git remote rename origin upstream
+
+# Make sure you do not accidentally push upstream
+git remote set-url --push upstream NO_PUSH_ALLOWED
+
+# Set your repository as remote origin
+git remote add origin git@github.com:<username>/webfs.git
+
+# Push everything to your new personal repository
+git push -u origin --all
+
+```
 
 ### Define Your Vaults (`.passwd`)
 In the root of the directory you want to encrypt (e.g., `./files`), create a `.passwd` file. This file dictates which directories belong to which encrypted vault. Rules cascade downwards unless overridden.
@@ -68,6 +85,8 @@ python scripts/packer.py ./path/to/target/directory
 ```
 This will generate the encrypted blobs inside the `blobs/` directory, alongside a `blobs.json` manifest.
 
+**Note**: Use the `--append` or `-a` flag to only pack the changed file. Otherwise to ensure proper security, packer will perform complete packs every time it runs.
+
 ### Serve the Application
 You can test it locally using Python's built-in HTTP server:
 ```bash
@@ -88,6 +107,17 @@ You can serve it by enabling Github pages:
 - Github will build your webpage within a few minutes and deploy it at `your_username.github.io/webfs`.
 
 To update your files, just pack -> stage -> commit -> push. And your files will be ready in a few minutes.
+
+### Sync "Occasional" Changes
+When the original repository gets an update you want to incorporate into your personal version:
+
+- Fetch the updates: `git fetch upstream`
+- Merge the changes:
+    ```bash
+    git checkout main
+    git merge upstream/main
+    ```
+- Push to your personal repo: `git push origin main`
 
 ---
 
@@ -113,4 +143,4 @@ The WebFS frontend relies on a curated stack of lightweight, highly-performant l
 
 ## LICENCE
 
-This project is licenced under the [MIT LICENCE](LICENCE)
+This project is licenced under the [MIT LICENCE](LICENCE).

@@ -9,17 +9,12 @@ from cryptography.hazmat.primitives import hashes
 BLOB_DIR = "./blobs"
 EXTRACT_DIR = "./unpacked"
 
-BLOB_SIZE = 32 * 1024 * 1024       # 32 MB
-INDEX_REGION = 16 * 1024           # 16 KB
+BLOB_SIZE = 32 * 1024 * 1024
+INDEX_REGION = 16 * 1024
 INDEX_OFFSET = BLOB_SIZE - INDEX_REGION
 
 def derive_encryption_key(password: str, salt: bytes) -> bytes:
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=200000,
-    )
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=200000)
     return kdf.derive(password.encode())
 
 def try_decrypt_index(blob_path: str, password: str) -> dict:
@@ -27,19 +22,16 @@ def try_decrypt_index(blob_path: str, password: str) -> dict:
         blob_file.seek(INDEX_OFFSET)
         region = blob_file.read(INDEX_REGION)
 
-    # Salt(16) + IV(12) + Length(4) = 32 bytes
     if len(region) < 32:
         return None
 
-    salt = region[:16]
-    iv = region[16:28]
+    salt, iv = region[:16], region[16:28]
     ciphertext_length = int.from_bytes(region[28:32], byteorder="big")
     ciphertext = region[32 : 32 + ciphertext_length]
 
     try:
         key = derive_encryption_key(password, salt)
         cipher = AESGCM(key)
-
         plaintext = cipher.decrypt(iv, ciphertext, associated_data=None)
         return json.loads(plaintext.decode('utf-8'))
     except Exception:
@@ -47,26 +39,20 @@ def try_decrypt_index(blob_path: str, password: str) -> dict:
 
 def find_valid_index(password: str) -> dict:
     print("\n[*] Scanning blobs for a matching index...")
-
     if not os.path.exists(BLOB_DIR):
         print(f"[!] Directory '{BLOB_DIR}' not found.")
         return None
 
     for blob_filename in os.listdir(BLOB_DIR):
-        # Ignore non-blob files like blobs.json
         if not os.path.isfile(os.path.join(BLOB_DIR, blob_filename)) or blob_filename.endswith(".json"):
             continue
 
         blob_path = os.path.join(BLOB_DIR, blob_filename)
-        print(f"    -> Checking: {blob_filename}")
-
         index_data = try_decrypt_index(blob_path, password)
         if index_data:
             print(f"[+] Success! Valid index unlocked in blob: {blob_filename}")
             return index_data
-
     return None
-
 
 def read_blob_range(blob_name: str, start_byte: int, end_byte: int) -> bytes:
     path = os.path.join(BLOB_DIR, blob_name)
@@ -74,29 +60,20 @@ def read_blob_range(blob_name: str, start_byte: int, end_byte: int) -> bytes:
         blob_file.seek(start_byte)
         return blob_file.read(end_byte - start_byte + 1)
 
-def retrieve_encrypted_file_bytes(index_entry: dict) -> bytes:
+def retrieve_encrypted_file_bytes(chunk_list: list) -> bytes:
     raw_payload = b""
-
-    for blob_name, (start_byte, end_byte) in index_entry.items():
+    for blob_name, start_byte, end_byte in chunk_list:
         print(f"[*] Reading chunk from {blob_name} (Bytes {start_byte} to {end_byte})")
         raw_payload += read_blob_range(blob_name, start_byte, end_byte)
-
     return raw_payload
 
 def decrypt_file_payload(payload: bytes, password: str) -> bytes:
     print("[*] Decrypting file payload...")
-
-    # Payload Layout: [Salt: 16b] [IV: 12b] [Ciphertext...]
-    salt = payload[:16]
-    iv = payload[16:28]
-    ciphertext = payload[28:]
-
+    salt, iv, ciphertext = payload[:16], payload[16:28], payload[28:]
     key = derive_encryption_key(password, salt)
     cipher = AESGCM(key)
-
     return cipher.decrypt(iv, ciphertext, associated_data=None)
 
-# MAIN INTERFACE
 def main():
     print("========================================")
     print("       WebFS Unpacker Utility           ")
@@ -104,24 +81,23 @@ def main():
 
     password = input("\nEnter vault password: ")
 
-    # Locate the index
     index_data = find_valid_index(password)
     if not index_data:
         print("\n[!] Error: No valid index found. Incorrect password or corrupted blobs.")
         sys.exit(1)
 
-    # Display available files
-    available_files = list(index_data.keys())
+    # Parse the new index structure
+    available_files = list(index_data["files"].keys())
+
     print("\nFiles available in this vault:")
     print("-" * 40)
     for i, file_name in enumerate(available_files):
-        print(f"  [{i}] {file_name}")
+        size_kb = index_data["files"][file_name].get("size", 0) / 1024
+        print(f"  [{i}] {file_name} ({size_kb:.1f} KB)")
     print("-" * 40)
 
-    # User Selection
     try:
-        choice_input = input("\nEnter the number of the file to extract: ")
-        choice = int(choice_input)
+        choice = int(input("\nEnter the number of the file to extract: "))
         target_file_path = available_files[choice]
     except (ValueError, IndexError):
         print("[!] Invalid selection. Exiting.")
@@ -129,11 +105,10 @@ def main():
 
     print(f"\n[*] Initiating extraction for: {target_file_path}")
 
-    # Extraction & Decryption
-    encrypted_payload = retrieve_encrypted_file_bytes(index_data[target_file_path])
+    chunk_list = index_data["files"][target_file_path]["chunks"]
+    encrypted_payload = retrieve_encrypted_file_bytes(chunk_list)
     plaintext_data = decrypt_file_payload(encrypted_payload, password)
 
-    # Save to disk
     output_path = os.path.join(EXTRACT_DIR, target_file_path)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 

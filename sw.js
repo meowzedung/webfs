@@ -54,6 +54,9 @@ async function readIndexFromBlob(blobName, password) {
         blobName, CONFIG.INDEX_OFFSET, CONFIG.INDEX_OFFSET + CONFIG.INDEX_REGION - 1
     );
 
+    // If region is smaller than headers, it's not a valid index blob
+    if (region.length < 32) return null;
+
     const salt = region.slice(0, 16);
     const iv = region.slice(16, 28);
     const length = new DataView(region.buffer, 28, 4).getUint32(0);
@@ -80,9 +83,12 @@ async function decryptVaultIndex(blobList, password) {
 }
 
 async function reconstructFilePayload(fileEntry) {
-    const chunkPromises = Object.entries(fileEntry).map(([blobName, [start, end]]) =>
+    // Iterate over the ordered chunks array: [[blobName, start, end], ...]
+    const chunkPromises = fileEntry.chunks.map(([blobName, start, end]) =>
         fetchByteRange(blobName, start, end)
     );
+
+    // Promise.all preserves the exact array order, ensuring perfect reconstruction
     const chunks = await Promise.all(chunkPromises);
     const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const payload = new Uint8Array(totalSize);
@@ -142,7 +148,7 @@ async function handleVirtualRequest(relativeUrl) {
         const activeVaultsData = [];
 
         for (const vault of unlockedVaults) {
-            const filesInVault = Object.keys(vault.indexData);
+            const filesInVault = Object.keys(vault.indexData.files || {});
             filesInVault.forEach(k => mergedKeys.add(k));
             activeVaultsData.push({ id: vault.id, name: vault.name, count: filesInVault.length });
         }
@@ -155,16 +161,26 @@ async function handleVirtualRequest(relativeUrl) {
 
     let targetVault = null;
     for (const vault of unlockedVaults) {
-        if (vault.indexData && vault.indexData[fileName]) {
-            targetVault = vault; break;
+        if (vault.indexData && vault.indexData.files && vault.indexData.files[fileName]) {
+            targetVault = vault;
+            break;
         }
     }
 
     if (targetVault) {
-        const fileEntry = targetVault.indexData[fileName];
-        const encryptedPayload = await reconstructFilePayload(fileEntry);
-        const decryptedFile = await decryptFilePayload(encryptedPayload, targetVault.password);
-        return new Response(decryptedFile);
+        // Retrieve the fileEntry from indexData.files
+        const fileEntry = targetVault.indexData.files[fileName];
+
+        try {
+            const encryptedPayload = await reconstructFilePayload(fileEntry);
+            const decryptedFile = await decryptFilePayload(encryptedPayload, targetVault.password);
+
+            // Support streaming video??
+            return new Response(decryptedFile);
+        } catch (error) {
+            console.error(`[WebFS] Failed to decrypt file: ${fileName}`, error);
+            return new Response("Decryption failed or file corrupted", { status: 500 });
+        }
     }
 
     return new Response("Not Found", { status: 404 });
